@@ -5,6 +5,8 @@ function num(value, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+const useOpenAI = !env.GROQ_API_KEY && !!env.OPENAI_API_KEY;
+
 export const config = {
   port: num(env.PORT, 8000),
   publicUrl: (env.PUBLIC_URL || '').replace(/\/+$/, ''),
@@ -15,11 +17,14 @@ export const config = {
   // Phones become coordinators by sending "COORDINATOR <code>".
   coordinatorCode: env.COORDINATOR_CODE || 'rescue',
 
-  groq: {
-    apiKey: env.GROQ_API_KEY || '',
-    model: env.GROQ_MODEL || 'llama-3.3-70b-versatile',
-    fallbackModel: env.GROQ_FALLBACK_MODEL || 'llama-3.1-8b-instant',
-    whisperModel: env.GROQ_WHISPER_MODEL || 'whisper-large-v3-turbo',
+  // Any OpenAI-compatible provider. Groq is used if GROQ_API_KEY is set, otherwise OpenAI.
+  ai: {
+    provider: env.AI_BASE_URL ? 'Custom' : useOpenAI ? 'OpenAI' : 'Groq',
+    apiKey: env.AI_API_KEY || env.GROQ_API_KEY || env.OPENAI_API_KEY || '',
+    baseUrl: (env.AI_BASE_URL || (useOpenAI ? 'https://api.openai.com/v1' : 'https://api.groq.com/openai/v1')).replace(/\/+$/, ''),
+    model: env.AI_MODEL || env.GROQ_MODEL || (useOpenAI ? 'gpt-4.1-mini' : 'llama-3.3-70b-versatile'),
+    fallbackModel: env.AI_FALLBACK_MODEL || env.GROQ_FALLBACK_MODEL || (useOpenAI ? 'gpt-4o-mini' : 'llama-3.1-8b-instant'),
+    whisperModel: env.AI_WHISPER_MODEL || env.GROQ_WHISPER_MODEL || (useOpenAI ? 'whisper-1' : 'whisper-large-v3-turbo'),
   },
 
   whatsapp: {

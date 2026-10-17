@@ -118,7 +118,7 @@ function publicState() {
     log: s.log.slice(-200).reverse(),
     config: {
       mapCenter: config.mapCenter,
-      ai: !!config.groq.apiKey,
+      ai: !!config.ai.apiKey,
       whatsapp: !!(config.whatsapp.token && config.whatsapp.phoneNumberId),
       telegram: !!config.telegram.token,
     },
@@ -246,7 +246,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(config.port, '0.0.0.0', () => {
   console.log(`ReliefLine listening on :${config.port}`);
-  console.log(`  AI (Groq): ${config.groq.apiKey ? 'on' : 'OFF (keyword fallback)'} · WhatsApp: ${config.whatsapp.token ? 'on' : 'off'} · Telegram: ${config.telegram.token ? 'on' : 'off'}`);
+  console.log(`  AI (${config.ai.provider}): ${config.ai.apiKey ? `on, ${config.ai.model}` : "OFF (keyword fallback)"} · WhatsApp: ${config.whatsapp.token ? 'on' : 'off'} · Telegram: ${config.telegram.token ? 'on' : 'off'}`);
   setTelegramWebhook();
 });
 
