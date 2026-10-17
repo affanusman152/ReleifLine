@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReliefLine · Response Desk</title>
+<meta name="description" content="WhatsApp-native disaster help desk: AI listens, translates and triages; humans verify and dispatch.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🆘</text></svg>">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --bg: #f4f2ee; --panel: #ffffff; --ink: #17191c; --muted: #6b6f76; --line: #e3e0da;
+    --red: #d7263d; --orange: #ee7b1c; --yellow: #d9a90f; --purple: #7b4bd1; --blue: #1f6feb;
+    --indigo: #3b3fb6; --green: #1f9d55; --gray: #9aa0a6; --soft: #f7f6f3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; }
+  button { font: inherit; cursor: pointer; }
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand h1 { margin: 0; font-size: 18px; letter-spacing: -.01em; }
+  .brand small { color: var(--muted); display: block; font-size: 12px; }
+  .pulse { width: 12px; height: 12px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 0 rgba(215,38,61,.6); animation: pulse 1.8s infinite; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 10px rgba(215,38,61,0); } 100% { box-shadow: 0 0 0 0 rgba(215,38,61,0); } }
+  .stats { display: flex; gap: 6px; flex-wrap: wrap; }
+  .stat { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; text-align: center; min-width: 74px; }
+  .stat b { display: block; font-size: 18px; line-height: 1.1; }
+  .stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .spacer { flex: 1; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { font-size: 12px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--soft); color: var(--muted); }
+  .chip.on { color: var(--green); border-color: #bfe5cf; background: #eefaf3; }
+  .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 10px; }
+  .btn:hover { background: var(--soft); }
+  .btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .btn.red { background: var(--red); color: #fff; border-color: var(--red); }
+  .btn.small { padding: 3px 8px; font-size: 12px; }
+  main { flex: 1; display: grid; grid-template-columns: 1fr 440px; min-height: 0; }
+  #map { min-height: 300px; }
+  aside { background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .tabs button { flex: 1; border: 0; background: none; padding: 10px 4px; color: var(--muted); border-bottom: 2px solid transparent; }
+  .tabs button.active { color: var(--ink); border-bottom-color: var(--red); font-weight: 600; }
+  .pane { flex: 1; overflow: auto; padding: 12px; display: none; }
+  .pane.active { display: block; }
+  .filters { display: flex; gap: 6px; margin-bottom: 10px; }
+  .card { border: 1px solid var(--line); border-left: 5px solid var(--gray); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: var(--panel); }
+  .card.focus { outline: 2px solid var(--ink); }
+  .card .top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .card .id { font-weight: 700; }
+  .pill { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; color: #fff; background: var(--gray); text-transform: uppercase; letter-spacing: .03em; }
+  .pill.outline { background: none; color: var(--muted); border: 1px solid var(--line); }
+  .summary { margin: 6px 0 4px; font-size: 15px; font-weight: 500; }
+  .orig { color: var(--muted); font-size: 13px; margin: 4px 0; direction: auto; unicode-bidi: plaintext; }
+  .meta { color: var(--muted); font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+  .dup { background: #fff6e5; border: 1px solid #f3d9a4; border-radius: 6px; padding: 4px 8px; font-size: 12px; margin-top: 6px; }
+  .ai { background: var(--soft); border-radius: 6px; padding: 6px 8px; font-size: 12px; margin-top: 6px; }
+  .ai b { color: var(--ink); }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .human { font-size: 12px; margin-top: 6px; color: var(--ink); }
+  .empty { color: var(--muted); text-align: center; padding: 30px 10px; }
+  .log-row { display: grid; grid-template-columns: 52px 38px 1fr; gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+  .log-row .t { color: var(--muted); }
+  .who { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; text-transform: uppercase; }
+  .who.ai { background: #e8efff; color: var(--blue); }
+  .who.human { background: #e9f8ef; color: var(--green); }
+  .who.system, .who.requester { background: var(--soft); color: var(--muted); }
+  .sim-head { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .samples { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .chat { background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 10px; height: 300px; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+  .bubble { max-width: 85%; padding: 7px 10px; border-radius: 12px; white-space: pre-wrap; word-wrap: break-word; direction: auto; unicode-bidi: plaintext; }
+  .bubble.me { align-self: flex-end; background: #dcf8c6; }
+  .bubble.bot { align-self: flex-start; background: #fff; border: 1px solid var(--line); }
+  .compose { display: flex; gap: 6px; margin-top: 8px; }
+  .compose textarea { flex: 1; resize: none; height: 58px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; direction: auto; }
+  .compose .col { display: flex; flex-direction: column; gap: 6px; }
+  .rec.on { background: var(--red); color: #fff; border-color: var(--red); }
+  .loc { font-size: 12px; margin-top: 6px; color: var(--muted); }
+  .how h3 { margin: 14px 0 4px; font-size: 14px; }
+  .how p, .how li { color: #33363b; }
+  .legend { position: absolute; z-index: 500; bottom: 16px; left: 12px; background: rgba(255,255,255,.95); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; max-width: calc(100% - 24px); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+  .mapwrap { position: relative; min-height: 0; display: flex; }
+  .mapwrap #map { flex: 1; }
+  .vol-icon { font-size: 18px; line-height: 18px; text-align: center; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+  .vol-icon.busy { opacity: .45; }
+  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 8px 14px; border-radius: 8px; z-index: 1000; display: none; max-width: 90vw; }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; grid-template-rows: 45vh auto; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+    .pane { overflow: visible; }
+    header { padding: 10px 16px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="pulse" aria-hidden="true"></div>
+    <div><h1>ReliefLine</h1><small>AI listens &amp; triages · humans verify &amp; dispatch</small></div>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div class="spacer"></div>
+  <div class="chips" id="chips"></div>
+  <button class="btn small" id="keyBtn" title="Coordinator key">🔒 Coordinator login</button>
+  <button class="btn small" id="resetBtn" style="display:none">Reset demo</button>
+</header>
+
+<main>
+  <div class="mapwrap">
+    <div id="map"></div>
+    <div class="legend">
+      <span><i style="background:var(--red)"></i>New P1</span>
+      <span><i style="background:var(--orange)"></i>New P2</span>
+      <span><i style="background:var(--yellow)"></i>New P3</span>
+      <span><i style="background:var(--purple)"></i>Waiting</span>
+      <span><i style="background:var(--blue)"></i>Dispatched</span>
+      <span><i style="background:var(--indigo)"></i>En route</span>
+      <span><i style="background:var(--green)"></i>Resolved</span>
+      <span>🙋 Volunteer</span>
+    </div>
+  </div>
+  <aside>
+    <div class="tabs" role="tablist">
+      <button class="active" data-tab="requests">Requests</button>
+      <button data-tab="sim">Try it</button>
+      <button data-tab="log">Audit log</button>
+      <button data-tab="how">How it works</button>
+    </div>
+    <div class="pane active" id="pane-requests">
+      <div class="filters">
+        <button class="btn small primary" data-filter="open">Open</button>
+        <button class="btn small" data-filter="all">All</button>
+      </div>
+      <div id="list"></div>
+    </div>
+    <div class="pane" id="pane-sim">
+      <div class="sim-head">
+        Act as a <b>person in a disaster zone</b>. <b>Click the map</b> to set where you are, then type in <b>any language</b> or record a <b>voice note</b>. Your request appears in <b>Requests</b>, where a coordinator decides.
+      </div>
+      <div class="samples">
+        <button class="btn small" data-sample="ur">🇵🇰 Urdu: flood</button>
+        <button class="btn small" data-sample="ar">🇸🇾 Arabic: collapse</button>
+        <button class="btn small" data-sample="es">🇲🇽 Spanish: supplies</button>
+        <button class="btn small" data-sample="en">🇬🇧 English: medicine</button>
+      </div>
+      <div class="chat" id="chat"></div>
+      <div class="compose">
+        <textarea id="simText" placeholder="Describe the emergency in any language…"></textarea>
+        <div class="col">
+          <button class="btn primary" id="simSend">Send</button>
+          <button class="btn rec" id="simRec">🎙 Voice</button>
+        </div>
+      </div>
+      <div class="loc" id="simLoc">📍 No location yet. Click the map to set one.</div>
+      <div class="loc"><span id="simWho"></span> · <a href="#" id="simNew">Switch to a new person</a></div>
+    </div>
+    <div class="pane" id="pane-log"><div id="log"></div></div>
+    <div class="pane how" id="pane-how">
+      <h3>The problem</h3>
+      <p>In floods, earthquakes and conflicts, cries for help pour into WhatsApp as panicked voice notes in many languages. Volunteers copy them into spreadsheets by hand while people wait.</p>
+      <h3>What ReliefLine does</h3>
+      <ol>
+        <li><b>Listens:</b> voice notes are transcribed (Whisper), in any language.</li>
+        <li><b>Understands:</b> AI extracts the need, the people, vulnerable groups and the location, and <i>suggests</i> a priority.</li>
+        <li><b>Spots duplicates:</b> reports within 300 m are flagged as possibly the same emergency.</li>
+        <li><b>A human decides:</b> a coordinator verifies, confirms or overrides the priority, merges duplicates or rejects false reports.</li>
+        <li><b>Dispatches:</b> the nearest available volunteer gets the task on WhatsApp with a map link.</li>
+        <li><b>Closes the loop:</b> the requester is told "help is on the way" in their own language.</li>
+      </ol>
+      <h3>Why a human must decide</h3>
+      <p>Life-or-death triage needs accountability, local knowledge and protection against false or manipulated reports. No human can listen to 5,000 voice notes in 10 languages, and no AI should decide alone who gets rescued first. Every AI suggestion and every human decision is in the <b>Audit log</b>.</p>
+      <h3>Not a replacement for 1122 / 112 / 911</h3>
+      <p>Emergency numbers handle one emergency at a time. ReliefLine is the surge layer for the day a thousand people need help at once, and for the NGOs and volunteers who do much of the rescuing.</p>
+      <p class="loc">Demo data only. Runs on Alternate Clouds.</p>
+    </div>
+  </aside>
+</main>
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+    del(k) { try { localStorage.removeItem(k); } catch {} },
+  };
+  const COLORS = { P1: '#d7263d', P2: '#ee7b1c', P3: '#d9a90f', waiting: '#7b4bd1', dispatched: '#1f6feb', accepted: '#3b3fb6', resolved: '#1f9d55', merged: '#9aa0a6', rejected: '#9aa0a6' };
+  const STATUS_LABEL = { new: 'New', waiting: 'Waiting for volunteer', dispatched: 'Dispatched', accepted: 'En route', resolved: 'Resolved', merged: 'Merged', rejected: 'Rejected' };
+  const NEED = { rescue: 'Rescue', medical: 'Medical', food_water: 'Food / water', shelter: 'Shelter', info: 'Info', other: 'Other' };
+  const OPEN = ['new', 'waiting', 'dispatched', 'accepted'];
+  const colorOf = (i) => (i.status === 'new' ? COLORS[i.aiPriority] : COLORS[i.status]) || '#9aa0a6';
+  const ago = (ts) => { const s = Math.max(0, (Date.now() - ts) / 1000); return s < 60 ? `${Math.round(s)}s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`; };
+  const toast = (msg) => { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => (t.style.display = 'none'), 3500); };
+
+  let state = null;
+  let filter = 'open';
+  let tab = 'requests';
+  let key = store.get('rl-key');
+  let focusId = null;
+
+  // ---------- map
+  const map = L.map('map', { zoomControl: true }).setView([30.1575, 71.5249], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+  const incidentLayer = L.layerGroup().addTo(map);
+  const volunteerLayer = L.layerGroup().addTo(map);
+  let centered = false;
+  let simMarker = null;
+
+  function renderMap() {
+    incidentLayer.clearLayers();
+    volunteerLayer.clearLayers();
+    for (const i of state.incidents) {
+      if (i.lat == null || i.lng == null || i.status === 'merged' || i.status === 'rejected') continue;
+      const m = L.circleMarker([i.lat, i.lng], { radius: i.status === 'resolved' ? 8 : 12, color: '#fff', weight: 2, fillColor: colorOf(i), fillOpacity: 0.95 })
+        .bindTooltip(`#${i.id} · ${esc(STATUS_LABEL[i.status])} · ${esc(i.summary)}`)
+        .on('click', () => { switchTab('requests'); focusCard(i.id); });
+      incidentLayer.addLayer(m);
+    }
+    for (const v of state.volunteers) {
+      if (v.lat == null || v.lng == null) continue;
+      const icon = L.divIcon({ className: '', html: `<div class="vol-icon ${v.status !== 'available' ? 'busy' : ''}">🙋</div>`, iconSize: [18, 18] });
+      volunteerLayer.addLayer(L.marker([v.lat, v.lng], { icon }).bindTooltip(`${esc(v.name)} · ${esc(v.status)}`));
+    }
+  }
+
+  map.on('click', (e) => {
+    if (tab !== 'sim') return;
+    setSimLoc(e.latlng.lat, e.latlng.lng);
+  });
+
+  // ---------- requests list
+  function needsDecision(i) { return i.status === 'new' || i.status === 'waiting'; }
+
+  function cardHtml(i) {
+    const statusColor = colorOf(i);
+    const original = (i.messages || []).map((m) => m.text).filter(Boolean).join(' / ');
+    const voice = (i.messages || []).some((m) => String(m.kind).startsWith('voice'));
+    const people = [i.peopleCount ? `👥 ${i.peopleCount} people` : null, i.vulnerable && i.vulnerable.length ? `⚠️ ${i.vulnerable.join(', ')}` : null].filter(Boolean).join(' · ');
+    const loc = i.lat != null ? `<a href="https://maps.google.com/?q=${i.lat},${i.lng}" target="_blank" rel="noopener">📍 map</a>` : `<span>📍 location missing${i.address ? `: “${esc(i.address)}”` : ''}</span>`;
+    let actions = '';
+    if (i.status === 'new' || i.status === 'waiting') {
+      actions += ['P1', 'P2', 'P3'].map((p) => `<button class="btn small ${p === i.aiPriority ? 'red' : ''}" data-act="dispatch" data-p="${p}" data-id="${i.id}">Dispatch ${p}${p === i.aiPriority ? ' (AI)' : ''}</button>`).join('');
+    }
+    if (i.status === 'new') {
+      if (i.possibleDuplicateOf) actions += `<button class="btn small" data-act="merge" data-target="${i.possibleDuplicateOf.id}" data-id="${i.id}">🔁 Merge into #${i.possibleDuplicateOf.id}</button>`;
+      actions += `<button class="btn small" data-act="reject" data-id="${i.id}">🚫 Not genuine</button>`;
+    }
+    if (OPEN.includes(i.status)) actions += `<button class="btn small" data-act="ask" data-id="${i.id}">❓ Ask requester</button>`;
+    if (i.status === 'dispatched') actions += `<button class="btn small" data-act="reoffer" data-id="${i.id}">↻ No answer: re-offer</button>`;
+    if (i.volunteerUid && i.status === 'dispatched') {
+      actions += `<button class="btn small" data-vact="accept" data-uid="${esc(i.volunteerUid)}" data-id="${i.id}">🙋 Demo volunteer: Accept</button>`;
+      actions += `<button class="btn small" data-vact="decline" data-uid="${esc(i.volunteerUid)}" data-id="${i.id}">🙋 Demo volunteer: Can't go</button>`;
+    }
+    if (i.volunteerUid && i.status === 'accepted') actions += `<button class="btn small" data-vact="done" data-uid="${esc(i.volunteerUid)}" data-id="${i.id}">🙋 Demo volunteer: Done</button>`;
+
+    const human = i.finalPriority
+      ? `<div class="human">👤 <b>${esc(i.decidedBy || 'Coordinator')}</b> set <b>${i.finalPriority}</b>${i.finalPriority !== i.aiPriority ? ` <span class="pill" style="background:var(--purple)">override of AI ${i.aiPriority}</span>` : ''}${i.volunteerName ? ` · 🙋 ${esc(i.volunteerName)}` : ''}</div>`
+      : i.decidedBy ? `<div class="human">👤 ${esc(i.decidedBy)}</div>` : '';
+
+    return `
+      <div class="top">
+        <span class="id">#${i.id}</span>
+        <span class="pill" style="background:${statusColor}">${esc(STATUS_LABEL[i.status])}</span>
+        <span class="pill outline">${esc(NEED[i.need] || i.need)}</span>
+        <span class="pill outline">${esc(i.language || '')}${voice ? ' · voice' : ''}</span>
+        <span class="spacer"></span><span class="meta">${ago(i.createdAt)}</span>
+      </div>
+      <div class="summary">${esc(i.summary)}</div>
+      ${original && !/^english$/i.test(i.language || '') ? `<div class="orig">🗣 ${esc(original.slice(0, 220))}</div>` : ''}
+      <div class="meta">${people ? `<span>${people}</span>` : ''}${loc}<span>${esc(i.requester)}</span></div>
+      ${i.possibleDuplicateOf && i.status === 'new' ? `<div class="dup">🔁 Possibly the same emergency as <b>#${i.possibleDuplicateOf.id}</b> (${i.possibleDuplicateOf.meters} m away)</div>` : ''}
+      ${i.duplicateOf ? `<div class="dup">Merged into #${i.duplicateOf}</div>` : ''}
+      <div class="ai">🤖 AI suggests <b>${i.aiPriority}</b>: ${esc(i.priorityReason || '')}${i.aiSource === 'rules' ? ' <i>(fallback rules)</i>' : ''}</div>
+      ${human}
+      ${actions ? `<div class="actions">${actions}</div>` : ''}`;
+  }
+
+  const cardCache = new Map();
+  function renderList() {
+    const rank = { new: 0, waiting: 1, dispatched: 2, accepted: 3, resolved: 4, merged: 5, rejected: 6 };
+    const prio = { P1: 0, P2: 1, P3: 2 };
+    const items = state.incidents
+      .filter((i) => filter === 'all' || OPEN.includes(i.status))
+      .sort((a, b) => rank[a.status] - rank[b.status] || prio[a.finalPriority || a.aiPriority] - prio[b.finalPriority || b.aiPriority] || b.createdAt - a.createdAt);
+    const list = $('#list');
+    if (!items.length) {
+      list.innerHTML = `<div class="empty">No ${filter === 'open' ? 'open ' : ''}requests yet.<br>Send a WhatsApp message, or use <b>Try it</b> to simulate one.</div>`;
+      cardCache.clear();
+      return;
+    }
+    const keep = new Set();
+    let prev = null;
+    for (const i of items) {
+      keep.add(i.id);
+      const sig = `${i.updatedAt}|${i.status}|${Math.floor((Date.now() - i.createdAt) / 30000)}`;
+      let entry = cardCache.get(i.id);
+      if (!entry) {
+        const el = document.createElement('div');
+        el.className = 'card';
+        el.dataset.id = i.id;
+        entry = { el, sig: null };
+        cardCache.set(i.id, entry);
+      }
+      if (entry.sig !== sig) { entry.el.innerHTML = cardHtml(i); entry.sig = sig; }
+      entry.el.style.borderLeftColor = colorOf(i);
+      entry.el.classList.toggle('focus', focusId === i.id);
+      const expected = prev ? prev.nextSibling : list.firstChild;
+      if (expected !== entry.el) list.insertBefore(entry.el, expected);
+      prev = entry.el;
+    }
+    for (const [id, entry] of cardCache) if (!keep.has(id)) { entry.el.remove(); cardCache.delete(id); }
+    const empty = list.querySelector('.empty'); if (empty) empty.remove();
+  }
+
+  function focusCard(id) {
+    focusId = id;
+    if (filter === 'open' && !OPEN.includes(state.incidents.find((i) => i.id === id)?.status)) { filter = 'all'; syncFilter(); }
+    renderList();
+    cardCache.get(id)?.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  $('#list').addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    const card = e.target.closest('.card');
+    if (!b) {
+      if (card) { const i = state.incidents.find((x) => x.id === Number(card.dataset.id)); if (i && i.lat != null) map.setView([i.lat, i.lng], 16); focusId = i?.id; renderList(); }
+      return;
+    }
+    const id = Number(b.dataset.id);
+    if (b.dataset.vact) return post('/api/volunteer-action', { uid: b.dataset.uid, action: b.dataset.vact, id });
+    const body = { id, action: b.dataset.act };
+    if (b.dataset.p) body.priority = b.dataset.p;
+    if (b.dataset.target) body.target = Number(b.dataset.target);
+    if (body.action === 'ask') {
+      const q = prompt(`Question for requester #${id}. It will be translated into their language:`);
+      if (!q) return;
+      body.question = q;
+    }
+    post('/api/action', body);
+  });
+
+  async function ensureKey() {
+    if (key) return true;
+    const k = prompt('Coordinator dashboard key:');
+    if (!k) return false;
+    const r = await fetch('/api/check-key', { method: 'POST', headers: { 'x-dashboard-key': k } });
+    if (!r.ok) { toast('Wrong key'); return false; }
+    key = k; store.set('rl-key', k); syncKey();
+    return true;
+  }
+
+  async function post(url, body) {
+    if (!(await ensureKey())) return;
+    const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-dashboard-key': key }, body: JSON.stringify(body) });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 401) { key = null; store.del('rl-key'); syncKey(); }
+    toast(data.message || (r.ok ? 'Done' : 'Failed'));
+    refresh();
+  }
+
+  function syncKey() {
+    $('#keyBtn').textContent = key ? '🔓 Coordinator' : '🔒 Coordinator login';
+    $('#resetBtn').style.display = key ? '' : 'none';
+  }
+  $('#keyBtn').onclick = async () => {
+    if (key) { if (confirm('Log out of coordinator mode?')) { key = null; store.del('rl-key'); syncKey(); } }
+    else ensureKey();
+  };
+  $('#resetBtn').onclick = async () => {
+    if (!confirm('Clear all requests and the audit log? Registered phones are kept.')) return;
+    await post('/api/reset', {});
+    newSimPerson();
+  };
+
+  // ---------- header
+  function renderHeader() {
+    const c = (st) => state.incidents.filter((i) => st.includes(i.status)).length;
+    const stats = [
+      ['New', c(['new']), 'var(--red)'],
+      ['Waiting', c(['waiting']), 'var(--purple)'],
+      ['Dispatched', c(['dispatched']), 'var(--blue)'],
+      ['En route', c(['accepted']), 'var(--indigo)'],
+      ['Resolved', c(['resolved']), 'var(--green)'],
+      ['Volunteers', state.volunteers.filter((v) => v.status === 'available').length + '/' + state.volunteers.length, 'var(--ink)'],
+    ];
+    $('#stats').innerHTML = stats.map(([l, n, col]) => `<div class="stat"><b style="color:${col}">${n}</b><span>${l}</span></div>`).join('');
+    const cfg = state.config;
+    $('#chips').innerHTML = [
+      [`AI ${cfg.ai ? 'on' : 'fallback'}`, cfg.ai],
+      ['WhatsApp', cfg.whatsapp],
+      ['Telegram', cfg.telegram],
+      [`${state.coordinators.length} coordinator${state.coordinators.length === 1 ? '' : 's'} on phone`, state.coordinators.length > 0],
+    ].map(([t, on]) => `<span class="chip ${on ? 'on' : ''}">${on ? '●' : '○'} ${esc(t)}</span>`).join('');
+  }
+
+  // ---------- audit log
+  function renderLog() {
+    const who = (a) => (a === 'ai' ? 'ai' : a === 'system' ? 'system' : a === 'requester' ? 'requester' : 'human');
+    $('#log').innerHTML = state.log.length ? state.log.map((l) => `
+      <div class="log-row">
+        <span class="t">${new Date(l.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        <span>${l.incidentId ? '#' + l.incidentId : ''}</span>
+        <span><span class="who ${who(l.actor)}">${who(l.actor) === 'human' ? '👤 ' + esc(l.actor) : esc(l.actor)}</span> ${esc(l.action.replace(/_/g, ' '))}${l.detail ? ': ' + esc(l.detail) : ''}</span>
+      </div>`).join('') : '<div class="empty">Every AI suggestion and every human decision will appear here.</div>';
+  }
+
+  // ---------- simulator
+  const SAMPLES = {
+    ur: { text: 'مدد کریں! ہمارے گھر میں پانی بھر گیا ہے۔ ہم تین لوگ چھت پر ہیں، ساتھ ایک چھوٹا بچہ بھی ہے۔ پانی تیزی سے بڑھ رہا ہے۔', d: [0.006, 0.004] },
+    ar: { text: 'النجدة! انهار المبنى المجاور، وجاري عالق تحت الأنقاض ومصاب في ساقه. نحن بجانب المسجد الكبير.', d: [-0.009, 0.011] },
+    es: { text: 'Necesitamos agua potable y comida. Somos unas 12 familias refugiadas en la escuela del barrio. No hay heridos.', d: [0.014, -0.012] },
+    en: { text: 'My grandmother is diabetic and we ran out of insulin two days ago. Roads are blocked. Please send medicine.', d: [-0.004, -0.016] },
+  };
+  let simSession = store.get('rl-sim') || null;
+  let simPerson = Number(store.get('rl-sim-n') || 1);
+  let simLoc = null;
+  let simLocSent = true;
+  const sentLocal = [];
+  let lastChat = '';
+
+  function newSimPerson(first = false) {
+    simSession = Math.random().toString(36).slice(2, 10);
+    simPerson = first ? 1 : simPerson + 1;
+    store.set('rl-sim', simSession); store.set('rl-sim-n', String(simPerson));
+    sentLocal.length = 0; simLoc = null; simLocSent = true;
+    if (simMarker) { map.removeLayer(simMarker); simMarker = null; }
+    $('#simLoc').textContent = '📍 No location yet. Click the map to set one.';
+    $('#simWho').textContent = `You are: person ${String.fromCharCode(64 + ((simPerson - 1) % 26) + 1)}`;
+    renderChat([]);
+  }
+  if (!simSession) newSimPerson(true); else $('#simWho').textContent = `You are: person ${String.fromCharCode(64 + ((simPerson - 1) % 26) + 1)}`;
+  $('#simNew').onclick = (e) => { e.preventDefault(); newSimPerson(); toast('New person: you can now report the same emergency from a different phone'); };
+
+  function setSimLoc(lat, lng) {
+    simLoc = { lat, lng }; simLocSent = false;
+    if (!simMarker) simMarker = L.marker([lat, lng], { draggable: true }).addTo(map).on('dragend', (e) => { const p = e.target.getLatLng(); setSimLoc(p.lat, p.lng); });
+    else simMarker.setLatLng([lat, lng]);
+    simMarker.bindTooltip('You (simulator)').openTooltip();
+    $('#simLoc').textContent = `📍 Location set (${lat.toFixed(4)}, ${lng.toFixed(4)}). It is sent with your next message.`;
+  }
+
+  document.querySelectorAll('[data-sample]').forEach((b) => b.onclick = () => {
+    const s = SAMPLES[b.dataset.sample];
+    $('#simText').value = s.text;
+    const [lat, lng] = state ? state.config.mapCenter : [30.1575, 71.5249];
+    setSimLoc(lat + s.d[0], lng + s.d[1]);
+    map.setView([lat + s.d[0], lng + s.d[1]], 14);
+  });
+
+  async function simSend() {
+    const text = $('#simText').value.trim();
+    const withLoc = simLoc && !simLocSent;
+    if (!text && !withLoc) return toast('Type a message or click the map to share a location');
+    $('#simSend').disabled = true;
+    if (text) sentLocal.push({ ts: Date.now(), me: true, text });
+    if (withLoc) sentLocal.push({ ts: Date.now() + 1, me: true, text: `📍 Shared location` });
+    $('#simText').value = '';
+    renderChat();
+    try {
+      await fetch(`/api/sim/${simSession}/message`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, ...(withLoc ? simLoc : {}) }) });
+      if (withLoc) simLocSent = true;
+    } catch { toast('Network error'); }
+    $('#simSend').disabled = false;
+    refresh();
+  }
+  $('#simSend').onclick = simSend;
+  $('#simText').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); simSend(); } });
+
+  // Voice notes from the browser microphone.
+  let rec = null, chunks = [];
+  $('#simRec').onclick = async () => {
+    if (rec && rec.state === 'recording') { rec.stop(); return; }
+    if (!navigator.mediaDevices || !window.MediaRecorder) return toast('Voice recording is not supported in this browser');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const type = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'].find((t) => MediaRecorder.isTypeSupported(t)) || '';
+      rec = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+      chunks = [];
+      rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        $('#simRec').classList.remove('on'); $('#simRec').textContent = '🎙 Voice';
+        const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+        if (blob.size < 1000) return toast('Recording too short');
+        sentLocal.push({ ts: Date.now(), me: true, text: '🎙 Voice note (transcribing…)' });
+        renderChat();
+        const q = simLoc && !simLocSent ? `?lat=${simLoc.lat}&lng=${simLoc.lng}` : '';
+        await fetch(`/api/sim/${simSession}/voice${q}`, { method: 'POST', headers: { 'content-type': blob.type }, body: blob })
+          .then(() => { if (q) simLocSent = true; })
+          .catch(() => toast('Upload failed'));
+        refresh();
+      };
+      rec.start();
+      $('#simRec').classList.add('on'); $('#simRec').textContent = '⏹ Stop';
+    } catch { toast('Microphone permission denied'); }
+  };
+
+  function renderChat(replies) {
+    if (replies) renderChat.replies = replies;
+    const all = [...sentLocal, ...(renderChat.replies || []).map((r) => ({ ts: r.ts, me: false, text: r.text }))].sort((a, b) => a.ts - b.ts);
+    const html = all.length ? all.map((m) => `<div class="bubble ${m.me ? 'me' : 'bot'}">${esc(m.text)}</div>`).join('') : '<div class="empty">Your conversation with ReliefLine appears here.</div>';
+    if (html === lastChat) return;
+    lastChat = html;
+    const chat = $('#chat');
+    chat.innerHTML = html;
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  // ---------- tabs & filters
+  function switchTab(t) {
+    tab = t;
+    document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === t));
+    document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('active', p.id === `pane-${t}`));
+    if (t === 'sim') toast('Click the map to set your location');
+  }
+  document.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => switchTab(b.dataset.tab)));
+  function syncFilter() { document.querySelectorAll('[data-filter]').forEach((b) => b.classList.toggle('primary', b.dataset.filter === filter)); }
+  document.querySelectorAll('[data-filter]').forEach((b) => (b.onclick = () => { filter = b.dataset.filter; syncFilter(); renderList(); }));
+
+  // ---------- polling
+  let refreshing = false;
+  async function refresh() {
+    if (refreshing) return;
+    refreshing = true;
+    try {
+      const [s, chat] = await Promise.all([
+        fetch('/api/state').then((r) => r.json()),
+        simSession ? fetch(`/api/sim/${simSession}`).then((r) => r.json()).catch(() => ({ messages: [] })) : { messages: [] },
+      ]);
+      state = s;
+      if (!centered) { map.setView(state.config.mapCenter, 13); centered = true; }
+      renderHeader(); renderMap(); renderList(); renderLog(); renderChat(chat.messages);
+    } catch (err) { console.warn(err); }
+    refreshing = false;
+  }
+  syncKey();
+  refresh();
+  setInterval(refresh, 2500);
+})();
+</script>
+</body>
+</html>

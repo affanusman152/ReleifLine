@@ -1,0 +1,15 @@
+{
+  "name": "reliefline",
+  "version": "1.0.0",
+  "description": "WhatsApp-native disaster help desk: AI triage, human dispatch.",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT"
+}

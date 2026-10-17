@@ -1,0 +1,8 @@
+.git
+.env
+data
+docs
+test
+node_modules
+.playwright-mcp
+*.md
