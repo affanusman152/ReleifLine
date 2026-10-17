@@ -22,8 +22,8 @@ export const config = {
     provider: env.AI_BASE_URL ? 'Custom' : useOpenAI ? 'OpenAI' : 'Groq',
     apiKey: env.AI_API_KEY || env.GROQ_API_KEY || env.OPENAI_API_KEY || '',
     baseUrl: (env.AI_BASE_URL || (useOpenAI ? 'https://api.openai.com/v1' : 'https://api.groq.com/openai/v1')).replace(/\/+$/, ''),
-    model: env.AI_MODEL || env.GROQ_MODEL || (useOpenAI ? 'gpt-4.1-mini' : 'llama-3.3-70b-versatile'),
-    fallbackModel: env.AI_FALLBACK_MODEL || env.GROQ_FALLBACK_MODEL || (useOpenAI ? 'gpt-4o-mini' : 'llama-3.1-8b-instant'),
+    model: env.AI_MODEL || env.GROQ_MODEL || (useOpenAI ? 'gpt-4.1-mini' : 'openai/gpt-oss-120b'),
+    fallbackModel: env.AI_FALLBACK_MODEL || env.GROQ_FALLBACK_MODEL || (useOpenAI ? 'gpt-4o-mini' : 'openai/gpt-oss-20b'),
     whisperModel: env.AI_WHISPER_MODEL || env.GROQ_WHISPER_MODEL || (useOpenAI ? 'whisper-1' : 'whisper-large-v3-turbo'),
   },
 

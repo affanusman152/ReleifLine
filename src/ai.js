@@ -41,7 +41,9 @@ async function chat(messages, { json = false, maxTokens = 500 } = {}) {
           model,
           messages,
           temperature: 0,
-          max_tokens: maxTokens,
+          // Reasoning models (gpt-oss) spend tokens thinking first: keep it short and leave headroom.
+          max_tokens: /gpt-oss/.test(model) ? maxTokens + 1500 : maxTokens,
+          ...(/gpt-oss/.test(model) ? { reasoning_effort: 'low' } : {}),
           ...(json ? { response_format: { type: 'json_object' } } : {}),
         }),
         signal: AbortSignal.timeout(20000),
