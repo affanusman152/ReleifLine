@@ -5,3 +5,4 @@ data/
 !.env.example
 .playwright-mcp/
 *.log
+submission/

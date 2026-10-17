@@ -137,17 +137,17 @@
     </div>
     <div class="pane" id="pane-sim">
       <div class="sim-head">
-        Act as a <b>person in a disaster zone</b>. <b>Click the map</b> to set where you are, then type in <b>any language</b> or record a <b>voice note</b>. Your request appears in <b>Requests</b>, where a coordinator decides.
+        Act as a <b>person in a disaster zone</b>. <b>Click the map</b> to set where you are, then pick a sample, type what is happening, or record a <b>voice note</b>. Your request appears in <b>Requests</b>, where a coordinator decides.
       </div>
       <div class="samples">
-        <button class="btn small" data-sample="ur">🇵🇰 Urdu: flood</button>
-        <button class="btn small" data-sample="ar">🇸🇾 Arabic: collapse</button>
-        <button class="btn small" data-sample="es">🇲🇽 Spanish: supplies</button>
-        <button class="btn small" data-sample="en">🇬🇧 English: medicine</button>
+        <button class="btn small" data-sample="flood">🌊 Flood rescue</button>
+        <button class="btn small" data-sample="collapse">🏚 Building collapse</button>
+        <button class="btn small" data-sample="supplies">💧 Water &amp; food</button>
+        <button class="btn small" data-sample="medicine">💊 Medicine</button>
       </div>
       <div class="chat" id="chat"></div>
       <div class="compose">
-        <textarea id="simText" placeholder="Describe the emergency in any language…"></textarea>
+        <textarea id="simText" placeholder="Describe the emergency…"></textarea>
         <div class="col">
           <button class="btn primary" id="simSend">Send</button>
           <button class="btn rec" id="simRec">🎙 Voice</button>
@@ -411,10 +411,10 @@
 
   // ---------- simulator
   const SAMPLES = {
-    ur: { text: 'مدد کریں! ہمارے گھر میں پانی بھر گیا ہے۔ ہم تین لوگ چھت پر ہیں، ساتھ ایک چھوٹا بچہ بھی ہے۔ پانی تیزی سے بڑھ رہا ہے۔', d: [0.006, 0.004] },
-    ar: { text: 'النجدة! انهار المبنى المجاور، وجاري عالق تحت الأنقاض ومصاب في ساقه. نحن بجانب المسجد الكبير.', d: [-0.009, 0.011] },
-    es: { text: 'Necesitamos agua potable y comida. Somos unas 12 familias refugiadas en la escuela del barrio. No hay heridos.', d: [0.014, -0.012] },
-    en: { text: 'My grandmother is diabetic and we ran out of insulin two days ago. Roads are blocked. Please send medicine.', d: [-0.004, -0.016] },
+    flood: { text: 'Help! Water has filled our house. Three of us are on the roof with a small child and the water is rising fast.', d: [0.006, 0.004] },
+    collapse: { text: 'Emergency! The building next to us collapsed. My neighbour is trapped under the rubble and his leg is badly injured. We are next to the big mosque.', d: [0.0062, 0.0042] },
+    supplies: { text: 'We need drinking water and food. About 12 families are sheltering in the neighbourhood school. Nobody is injured.', d: [0.014, -0.012] },
+    medicine: { text: 'My grandmother is diabetic and we ran out of insulin two days ago. Roads are blocked. Please send medicine.', d: [-0.004, -0.016] },
   };
   let simSession = store.get('rl-sim') || null;
   let simPerson = Number(store.get('rl-sim-n') || 1);
