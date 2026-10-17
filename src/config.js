@@ -8,7 +8,7 @@ function num(value, fallback) {
 const useOpenAI = !env.GROQ_API_KEY && !!env.OPENAI_API_KEY;
 
 export const config = {
-  port: num(env.PORT, 8000),
+  port: num(env.PORT, 3000),
   publicUrl: (env.PUBLIC_URL || '').replace(/\/+$/, ''),
   dataDir: env.DATA_DIR || './data',
 

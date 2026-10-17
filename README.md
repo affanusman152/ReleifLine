@@ -2,7 +2,7 @@
 
 **A disaster help desk that runs on WhatsApp. AI listens, translates and triages; humans verify and dispatch.**
 
-> Built for Agentika 2.0 (NaSCon 2026) · Theme: *Human + AI: Better Together* · Deployed on **Alternate Clouds**
+> Built for Agentika 2.0 (NaSCon 2026) · Theme: *Human + AI: Better Together* · Deployed on **Alternate Clouds** (decentralized compute on Akash)
 
 In floods, earthquakes and conflicts, cries for help pour into WhatsApp as panicked voice notes in many languages. Volunteers copy them into spreadsheets by hand while people wait. ReliefLine turns each voice note, message and location pin into a translated, prioritised, de-duplicated rescue ticket on a live map. A **human coordinator** then verifies it and dispatches the nearest volunteer, and the person who asked for help is told "help is on the way" in their own language.
 
@@ -18,8 +18,8 @@ Life-or-death triage needs human accountability, local knowledge and protection 
 Person in need ──WhatsApp/Telegram (voice · text · 📍)──┐
                                                         ▼
                          ReliefLine on Alternate Clouds (Node.js container)
-                           ├─ Groq Whisper   → speech to text, any language
-                           ├─ Groq Llama     → need, people, vulnerable, address, suggested priority, translation
+                           ├─ Whisper (Groq/OpenAI) → speech to text, any language
+                           ├─ LLM (Groq/OpenAI)     → need, people, vulnerable, address, suggested priority, translation
                            ├─ OpenStreetMap  → address text → coordinates
                            ├─ Rules          → duplicates within 300 m, nearest available volunteer
                            └─ Live dashboard → map, request cards, audit log, browser simulator
@@ -64,9 +64,9 @@ Open the live link → **Try it** tab → click the map to set a location → se
 
 1. Push this repo to GitHub.
 2. In [clouds.alternatefutures.ai](https://clouds.alternatefutures.ai): **Add Service** → from the GitHub repo (it builds the `Dockerfile`).
-3. **Source tab:** `PORT` = `8000` (it must match, or you get a 502).
-4. **Variables tab:** add the variables from [.env.example](.env.example). At minimum: `PORT`, `PUBLIC_URL`, `DASHBOARD_KEY`, `COORDINATOR_CODE`, `GROQ_API_KEY`.
-5. **Rebuild**, wait for it to succeed, then **Deploy**. Check the **Logs** tab for `ReliefLine listening on :8000`.
+3. **Port:** the platform routes to `3000` and the app listens on `PORT` (default `3000`). If they differ, you get a 404/502.
+4. **Variables tab:** add the variables from [.env.example](.env.example). At minimum: `PUBLIC_URL`, `DASHBOARD_KEY`, `COORDINATOR_CODE`, and `GROQ_API_KEY` **or** `OPENAI_API_KEY`.
+5. **Rebuild**, wait for it to succeed, then **Deploy**. Check the **Logs** tab for `ReliefLine listening on :3000`.
 6. Open `https://<your-service>/health` → `{"ok":true}`.
 
 After every code push or variable change: **Rebuild → Deploy**.
@@ -88,12 +88,12 @@ Use [@BotFather](https://t.me/BotFather) → `/newbot` → put the token in `TEL
 ## Run locally
 
 ```bash
-node src/server.js          # http://localhost:8000 (Node 22+, no npm install needed)
+node src/server.js          # http://localhost:3000 (Node 22+, no npm install needed)
 npm test                    # 17 tests: full rescue loop, overrides, duplicates, idempotency, failover, parsing
 ```
 
 ## Built with
-Node.js (zero dependencies) · Groq (Whisper + Llama) · WhatsApp Cloud API · Telegram Bot API · Leaflet + OpenStreetMap / Nominatim · Docker · **Alternate Clouds**
+Node.js (zero dependencies) · Groq or OpenAI (Whisper + LLM) · WhatsApp Cloud API · Telegram Bot API · Leaflet + OpenStreetMap / Nominatim · Docker · **Alternate Clouds**
 
 **Third-party credits:** [Leaflet](https://leafletjs.com) (BSD-2), map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL), geocoding by Nominatim.
 
