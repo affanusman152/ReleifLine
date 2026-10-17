@@ -6,3 +6,4 @@ data/
 .playwright-mcp/
 *.log
 submission/
+ai-key.txt
